@@ -9,7 +9,7 @@ Original file is located at
 Internal dashboard
 """
 
-!pip install streamlit
+pip install streamlit
 import streamlit as st
 import pandas as pd
 import numpy as np
