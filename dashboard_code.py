@@ -84,35 +84,28 @@ def clean_chapter_summary(text, chapter_title):
     if not isinstance(text, str):
         return ""
 
-    # Special patch: remove 'equality' if it's the first word in Chapter 4
-    if chapter_title == "Gender and sexual equality":
-        lines = text.strip().splitlines()
-        if lines and lines[0].strip().lower() == "equality":
-            text = "\n".join(lines[1:])
-
     lines = text.splitlines()
     cleaned_lines = []
 
-    for line in lines:
+    for i, line in enumerate(lines):
         stripped = line.strip()
 
-        # Remove lines that match the chapter title exactly (start or end)
+        # Remove first line if it matches or starts with the chapter title (common OCR issue)
+        if i == 0 and stripped.lower().startswith(chapter_title.lower()):
+            continue
+
+        # Special case: remove "equality" if it shows up again
+        if chapter_title == "Gender and sexual equality" and stripped.lower() == "equality":
+            continue
+
         if stripped == chapter_title:
             continue
-
-        # Remove lines like "Sexual health 261" or "261 Sexual health"
         if chapter_title.lower() in stripped.lower() and re.search(r"\d", stripped):
             continue
-
-        # Remove CHAPTER header
         if re.search(r"CHAPTER\s+\d+", stripped, flags=re.IGNORECASE):
             continue
-
-        # Remove lines like "Chapter summary"
         if "Chapter summary" in stripped:
             continue
-
-        # Remove single page numbers
         if re.match(r"^\d+$", stripped):
             continue
 
@@ -169,7 +162,7 @@ if search_query:
     ]
 
 # Show filtered activities if any filter is applied
-if selected_age != "All" or selected_tags:
+if selected_age != "All" or selected_tags or search_query:
     st.title("🎯 Filtered Activities")
 
     if filtered_df.empty:
@@ -193,7 +186,7 @@ if selected_age != "All" or selected_tags:
                     sim_row = df.iloc[i]
                     st.markdown(f"**→ {sim_row['title']}** — _{sim_row['purpose']}_")
 else:
-    st.title("📘 Pyari Curriculum Activities")
+    st.title("Pyari Curriculum Activities")
 
     # Get unique chapters
     chapters = list(chapter_titles.values())
