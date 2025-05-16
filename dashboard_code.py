@@ -160,56 +160,51 @@ if selected_age != "All" or selected_tags:
                     sim_row = df.iloc[i]
                     st.markdown(f"**→ {sim_row['title']}** — _{sim_row['purpose']}_")
 else:
-    # 👇 Your current chapter → section → activity structure goes here
-    # selected_chapter = ...
-    # chapter_activities = ...
-    # st.markdown(f"## 📘 {chapter_title}") ...
-    pass
+    st.title("📘 Pyari Curriculum Activities")
 
-st.title("📘 Pyari Curriculum Activities")
+    # Get unique chapters
+    chapters = list(chapter_titles.values())
+    title_to_chapter = {v: k for k, v in chapter_titles.items()}
+    selected_chapter_title = st.selectbox("📚 Choose a Chapter", sorted(chapters))
+    selected_chapter = title_to_chapter[selected_chapter_title]
 
-# Get unique chapters
-chapters = list(chapter_titles.values())
-title_to_chapter = {v: k for k, v in chapter_titles.items()}
-selected_chapter_title = st.selectbox("📚 Choose a Chapter", sorted(chapters))
-selected_chapter = title_to_chapter[selected_chapter_title]
+    # Filter for the selected chapter
+    chapter_activities = df[df["chapter"] == selected_chapter]
+    chapter_title = chapter_titles[selected_chapter]
+    raw_summary = chapter_activities["chapter_summary"].dropna().unique()
 
-# Filter for the selected chapter
-chapter_activities = df[df["chapter"] == selected_chapter]
-chapter_title = chapter_titles[selected_chapter]
-raw_summary = chapter_activities["chapter_summary"].dropna().unique()
+    if raw_summary.any():
+        cleaned_summary = clean_chapter_summary(raw_summary[0], chapter_title)
 
-if raw_summary.any():
-    cleaned_summary = clean_chapter_summary(raw_summary[0], chapter_title)
+        st.markdown(f"## 📘 {chapter_title}")
+        for para in cleaned_summary.split("\n\n"):
+            st.markdown(para.strip())
 
-    st.markdown(f"## 📘 {chapter_title}")
-    for para in cleaned_summary.split("\n\n"):
-        st.markdown(para.strip())
+    # Show sections in the selected chapter
+    sections = chapter_activities["section"].dropna().unique()
+    selected_section = st.selectbox("📂 Choose a Section", sorted(sections))
 
-# Show sections in the selected chapter
-sections = chapter_activities["section"].dropna().unique()
-selected_section = st.selectbox("📂 Choose a Section", sorted(sections))
+    # Filter to selected section
+    section_activities = chapter_activities[chapter_activities["section"] == selected_section]
 
-# Filter to selected section
-section_activities = chapter_activities[chapter_activities["section"] == selected_section]
+    # Display activities in selected section
+    st.markdown("### 🎯 Activities")
 
-# Display activities in selected section
-st.markdown("### 🎯 Activities")
+    for idx, row in section_activities.iterrows():
+        st.subheader(row["title"])
+        st.markdown(f"**Purpose:** {row['purpose']}")
+        st.markdown(f"**Age Group:** {row['age_group']}")
+        st.markdown(f"**Tags:** {', '.join(row['pyari_curriculum_tags']) if isinstance(row['pyari_curriculum_tags'], list) else row['pyari_curriculum_tags']}")
+        
+        with st.expander("📖 Instructions"):
+            st.markdown(row["instructions"])
+        
+        with st.expander("✨ See similar activities"):
+            emb_matrix = np.stack(df["embedding"].values)
+            target = np.array(row["embedding"]).reshape(1, -1)
+            sims = cosine_similarity(target, emb_matrix)[0]
+            top_indices = sims.argsort()[::-1][1:4]
+            for i in top_indices:
+                sim_row = df.iloc[i]
+                st.markdown(f"**→ {sim_row['title']}** — _{sim_row['purpose']}_")
 
-for idx, row in section_activities.iterrows():
-    st.subheader(row["title"])
-    st.markdown(f"**Purpose:** {row['purpose']}")
-    st.markdown(f"**Age Group:** {row['age_group']}")
-    st.markdown(f"**Tags:** {', '.join(row['pyari_curriculum_tags']) if isinstance(row['pyari_curriculum_tags'], list) else row['pyari_curriculum_tags']}")
-    
-    with st.expander("📖 Instructions"):
-        st.markdown(row["instructions"])
-    
-    with st.expander("✨ See similar activities"):
-        emb_matrix = np.stack(df["embedding"].values)
-        target = np.array(row["embedding"]).reshape(1, -1)
-        sims = cosine_similarity(target, emb_matrix)[0]
-        top_indices = sims.argsort()[::-1][1:4]
-        for i in top_indices:
-            sim_row = df.iloc[i]
-            st.markdown(f"**→ {sim_row['title']}** — _{sim_row['purpose']}_")
