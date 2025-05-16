@@ -31,7 +31,7 @@ def simplify_age(age):
 df["age_group"] = df["age_group"].apply(simplify_age)
 
 # Get full chapter titles from first few lines in the chapter_summary field
-def extract_chapter_title(summary):
+def extract_chapter_title(summary, chapter_key=chapter):
     if not isinstance(summary, str):
         return "Untitled"
 
@@ -59,7 +59,7 @@ chapter_titles = {}
 for chapter in df["chapter"].dropna().unique():
     chapter_summary = df[df["chapter"] == chapter]["chapter_summary"].dropna().values
     if chapter_summary.size > 0:
-        extracted_title = extract_chapter_title(chapter_summary[0])
+        extracted_title = extract_chapter_title(chapter_summary[0], chapter_key)
         if extracted_title:
             chapter_titles[chapter] = extracted_title  # ⬅️ this is the change
         else:
@@ -136,6 +136,22 @@ selected_age = st.sidebar.selectbox("Filter by Age Group", ["All"] + age_options
 all_tags = sorted({tag for sublist in df["pyari_curriculum_tags"] for tag in sublist})
 selected_tags = st.sidebar.multiselect("Filter by Tags", all_tags)
 
+search_query = st.sidebar.text_input("Search by keyword", "")
+
+st.sidebar.markdown("### ℹ️ About This Project")
+
+st.sidebar.markdown("""
+This internal dashboard was developed as part of a **Text Mining** course at **Wesleyan University**. It is based on the book:
+
+**_Great Relationships and Sex Education: 200+ Activities for Educators Working with Young People_**  
+© 2020 Alice Hoyle and Ester McGeeney  
+Published by Routledge, an imprint of Taylor & Francis Group.
+
+All rights belong to the original authors and publishers. This dashboard is for internal academic use only and does not distribute or reproduce any part of the original material beyond its intended scope.
+
+[Link to the book](https://www.routledge.com/9780815393634)
+""")
+
 # Apply filters
 filtered_df = df.copy()
 
@@ -144,6 +160,14 @@ if selected_age != "All":
 
 if selected_tags:
     filtered_df = filtered_df[filtered_df["pyari_curriculum_tags"].apply(lambda tags: any(tag in tags for tag in selected_tags))]
+
+if search_query:
+    filtered_df = filtered_df[
+        filtered_df["title"].str.contains(search_query, case=False, na=False) |
+        filtered_df["purpose"].str.contains(search_query, case=False, na=False) |
+        filtered_df["instructions"].str.contains(search_query, case=False, na=False)
+    ]
+
 # Show filtered activities if any filter is applied
 if selected_age != "All" or selected_tags:
     st.title("🎯 Filtered Activities")
