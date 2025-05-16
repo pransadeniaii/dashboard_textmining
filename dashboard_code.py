@@ -59,7 +59,7 @@ chapter_titles = {}
 for chapter in df["chapter"].dropna().unique():
     chapter_summary = df[df["chapter"] == chapter]["chapter_summary"].dropna().values
     if chapter_summary.size > 0:
-        extracted_title = extract_chapter_title(chapter_summary[0], chapter_key)
+        extracted_title = extract_chapter_title(chapter_summary[0], chapter)
         if extracted_title:
             chapter_titles[chapter] = extracted_title  # ⬅️ this is the change
         else:
