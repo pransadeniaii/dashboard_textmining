@@ -87,25 +87,30 @@ def clean_chapter_summary(text, chapter_title):
     lines = text.splitlines()
     cleaned_lines = []
 
-    for i, line in enumerate(lines):
+    for line in lines:
         stripped = line.strip()
 
-        # Remove first line if it matches or starts with the chapter title (common OCR issue)
-        if i == 0 and stripped.lower().startswith(chapter_title.lower()):
-            continue
-
-        # Special case: remove "equality" if it shows up again
+        # Remove the word "equality" if it's the first word in Chapter 4
         if chapter_title == "Gender and sexual equality" and stripped.lower() == "equality":
             continue
 
+        # Remove lines that match the chapter title exactly (start or end)
         if stripped == chapter_title:
             continue
+
+        # Remove lines like "Sexual health 261" or "261 Sexual health"
         if chapter_title.lower() in stripped.lower() and re.search(r"\d", stripped):
             continue
+
+        # Remove CHAPTER header
         if re.search(r"CHAPTER\s+\d+", stripped, flags=re.IGNORECASE):
             continue
+
+        # Remove lines like "Chapter summary"
         if "Chapter summary" in stripped:
             continue
+
+        # Remove single page numbers
         if re.match(r"^\d+$", stripped):
             continue
 
