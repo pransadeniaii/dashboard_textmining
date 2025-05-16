@@ -31,7 +31,7 @@ def simplify_age(age):
 df["age_group"] = df["age_group"].apply(simplify_age)
 
 # Get full chapter titles from first few lines in the chapter_summary field
-def extract_chapter_title(summary, chapter_key=chapter):
+def extract_chapter_title(summary, chapter_key):
     if not isinstance(summary, str):
         return "Untitled"
 
