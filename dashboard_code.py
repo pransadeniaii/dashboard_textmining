@@ -35,21 +35,29 @@ def extract_chapter_title(summary):
     if not isinstance(summary, str):
         return "Untitled"
 
-    # Try: "CHAPTER 6 Sex"
-    match = re.search(r"CHAPTER\s+\d+\s+(.+)", summary, flags=re.IGNORECASE)
+    lines = [line.strip() for line in summary.splitlines() if line.strip()]
+    
+    # Try: "CHAPTER 6 Gender and sexual equality"
+    joined = " ".join(lines[:4])  # combine first few lines to catch broken titles
+    match = re.search(r"CHAPTER\s+\d+\s+([A-Za-z\s&]+)", joined, flags=re.IGNORECASE)
+    if match:
+        title_candidate = match.group(1).strip()
+        return title_candidate
+
+    # Try: standalone numeric header like "6 Gender and sexual equality"
+    match = re.search(r"^\d+\s+([A-Za-z\s&]+)", joined, flags=re.IGNORECASE)
     if match:
         return match.group(1).strip()
 
-    # Try: "6 Sex" (page heading without "CHAPTER")
-    match = re.search(r"^\d+\s+([A-Za-z].+)$", summary, flags=re.MULTILINE)
-    if match:
-        return match.group(1).strip()
+    # Fallback: try the first two lines combined if they look like broken OCR
+    if len(lines) >= 2 and lines[0].istitle() and lines[1][0].islower() == False:
+        return f"{lines[0]} {lines[1]}".strip()
 
-    # Fallback: Use most likely first non-"Introduction" line
-    for line in summary.splitlines():
-        clean = line.strip()
-        if clean and clean.lower() not in ["introduction", "chapter summary"]:
-            return clean
+    # Last fallback: first non-intro line
+    for line in lines:
+        if line.lower() not in ["introduction", "chapter summary"]:
+            return line.strip()
+
     return "Untitled"
 
 chapter_titles = {}
