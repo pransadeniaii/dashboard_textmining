@@ -34,18 +34,22 @@ df["age_group"] = df["age_group"].apply(simplify_age)
 def extract_chapter_title(summary):
     if not isinstance(summary, str):
         return "Untitled"
-    
-    # Try to extract title after "CHAPTER X"
-    match = re.search(r"CHAPTER\s+\d+\s+([^\n]+)", summary, flags=re.IGNORECASE)
+
+    # Try: "CHAPTER 6 Sex"
+    match = re.search(r"CHAPTER\s+\d+\s+(.+)", summary, flags=re.IGNORECASE)
     if match:
         return match.group(1).strip()
 
-    # Otherwise fall back to first line
-    lines = summary.splitlines()
-    for line in lines:
-        if line.strip() and not line.strip().isdigit():
-            return line.strip()
-    
+    # Try: "6 Sex" (page heading without "CHAPTER")
+    match = re.search(r"^\d+\s+([A-Za-z].+)$", summary, flags=re.MULTILINE)
+    if match:
+        return match.group(1).strip()
+
+    # Fallback: Use most likely first non-"Introduction" line
+    for line in summary.splitlines():
+        clean = line.strip()
+        if clean and clean.lower() not in ["introduction", "chapter summary"]:
+            return clean
     return "Untitled"
 
 chapter_titles = {}
@@ -81,23 +85,29 @@ def clean_chapter_summary(text, chapter_title):
     cleaned_lines = []
 
     for line in lines:
-        # Remove exact lines that match the title or are just page numbers
-        if line.strip() == chapter_title or re.match(r"^\s*\d+\s*$", line):
+        stripped = line.strip()
+
+        # Remove lines that match the chapter title exactly (start or end)
+        if stripped == chapter_title:
             continue
 
-        # Remove footer like "98 Gender and sexual equality"
-        if re.match(r"\d{1,3}\s+" + re.escape(chapter_title), line, flags=re.IGNORECASE):
+        # Remove lines like "Sexual health 261" or "261 Sexual health"
+        if chapter_title.lower() in stripped.lower() and re.search(r"\d", stripped):
             continue
 
-        # Remove CHAPTER headers
-        if re.search(r"CHAPTER\s+\d+", line, flags=re.IGNORECASE):
+        # Remove CHAPTER header
+        if re.search(r"CHAPTER\s+\d+", stripped, flags=re.IGNORECASE):
             continue
 
-        # Remove "Chapter summary"
-        if "Chapter summary" in line:
+        # Remove lines like "Chapter summary"
+        if "Chapter summary" in stripped:
             continue
 
-        cleaned_lines.append(line.strip())
+        # Remove single page numbers
+        if re.match(r"^\d+$", stripped):
+            continue
+
+        cleaned_lines.append(stripped)
 
     cleaned_text = "\n\n".join([para for para in "\n".join(cleaned_lines).split("\n\n") if para.strip()])
     return cleaned_text.strip()
@@ -133,8 +143,10 @@ if search_query:
 st.title("📘 Pyari Curriculum Activities")
 
 # Get unique chapters
-chapters = df["chapter"].dropna().unique()
-selected_chapter = st.selectbox("📚 Choose a Chapter", sorted(chapters))
+chapters = list(chapter_titles.values())
+title_to_chapter = {v: k for k, v in chapter_titles.items()}
+selected_chapter_title = st.selectbox("📚 Choose a Chapter", sorted(chapters))
+selected_chapter = title_to_chapter[selected_chapter_title]
 
 # Filter for the selected chapter
 chapter_activities = df[df["chapter"] == selected_chapter]
