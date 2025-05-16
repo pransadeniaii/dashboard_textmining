@@ -30,6 +30,26 @@ def simplify_age(age):
 
 df["age_group"] = df["age_group"].apply(simplify_age)
 
+# Cleaning chapter summary
+def clean_chapter_summary(text):
+    if not isinstance(text, str):
+        return ""
+
+    # Remove leading page numbers + "CHAPTER X"
+    text = re.sub(r"^\d+\\s+CHAPTER\\s+\\d+\\s+[^\n]+", "", text, flags=re.IGNORECASE)
+
+    # Remove trailing boilerplate like "Chapter summary"
+    splitters = ["Chapter summary", "chapter summary", "Creating safer", " spaces", "Chapter\\s+\\d+"]
+    for marker in splitters:
+        parts = re.split(marker, text)
+        if len(parts) > 1:
+            text = parts[0]
+            break
+
+    # Replace double newlines or awkward line breaks with paragraph spacing
+    text = re.sub(r"(\\n\\s*){2,}", "\n\n", text)  # normalize breaks
+    return text.strip()
+
 # -- Convert instruction strings that look like lists into bullet points
 def format_instructions(instr):
     if isinstance(instr, str):
@@ -79,7 +99,8 @@ chapter_activities = df[df["chapter"] == selected_chapter]
 chapter_summary = chapter_activities["chapter_summary"].dropna().unique()
 if chapter_summary.any():
     st.markdown("### ✨ Chapter Summary")
-    st.markdown(chapter_summary[0])
+    for para in chapter_summary[0].split("\n\n"):
+    st.markdown(para.strip())
 
 # Show sections in the selected chapter
 sections = chapter_activities["section"].dropna().unique()
