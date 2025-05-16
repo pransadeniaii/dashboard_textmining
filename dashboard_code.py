@@ -31,25 +31,35 @@ def simplify_age(age):
 df["age_group"] = df["age_group"].apply(simplify_age)
 
 # Get full chapter titles from first few lines in the chapter_summary field
-def extract_title_from_summary(summary):
-    if isinstance(summary, str):
-        match = re.search(r"CHAPTER\s+\d+\s*:\s*(.+?)(\.\s|$)", summary, flags=re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-    return ""
+def extract_chapter_title(summary):
+    if not isinstance(summary, str):
+        return "Untitled"
+    
+    # Try to extract title after "CHAPTER X"
+    match = re.search(r"CHAPTER\s+\d+\s+([^\n]+)", summary, flags=re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
 
-# Try extracting chapter names from the summary field
+    # Otherwise fall back to first line
+    lines = summary.splitlines()
+    for line in lines:
+        if line.strip() and not line.strip().isdigit():
+            return line.strip()
+    
+    return "Untitled"
+
 chapter_titles = {}
 for chapter in df["chapter"].dropna().unique():
     chapter_summary = df[df["chapter"] == chapter]["chapter_summary"].dropna().values
     if chapter_summary.size > 0:
-        extracted_title = extract_title_from_summary(chapter_summary[0])
+        extracted_title = extract_chapter_title(chapter_summary[0])
         if extracted_title:
-            chapter_titles[chapter] = f"{chapter}: {extracted_title}"
+            chapter_titles[chapter] = extracted_title  # ⬅️ this is the change
         else:
-            chapter_titles[chapter] = chapter  # fallback
+            chapter_titles[chapter] = "Untitled"
     else:
-        chapter_titles[chapter] = chapter
+        chapter_titles[chapter] = "Untitled"
+
 
 
 # -- Convert instruction strings that look like lists into bullet points
@@ -71,20 +81,28 @@ def clean_chapter_summary(text, chapter_title):
     cleaned_lines = []
 
     for line in lines:
-        if re.match(r"^\s*\d+\s*$", line):  # page numbers
+        # Remove exact lines that match the title or are just page numbers
+        if line.strip() == chapter_title or re.match(r"^\s*\d+\s*$", line):
             continue
-        if re.search(rf"\d{{1,3}}\s+{re.escape(chapter_title)}", line, flags=re.IGNORECASE):  # footer
+
+        # Remove footer like "98 Gender and sexual equality"
+        if re.match(r"\d{1,3}\s+" + re.escape(chapter_title), line, flags=re.IGNORECASE):
             continue
-        if re.search(r"Chapter summary", line, flags=re.IGNORECASE):  # footer label
+
+        # Remove CHAPTER headers
+        if re.search(r"CHAPTER\s+\d+", line, flags=re.IGNORECASE):
             continue
-        if re.search(r"CHAPTER\s+\d+", line, flags=re.IGNORECASE):  # header
+
+        # Remove "Chapter summary"
+        if "Chapter summary" in line:
             continue
 
         cleaned_lines.append(line.strip())
 
     cleaned_text = "\n\n".join([para for para in "\n".join(cleaned_lines).split("\n\n") if para.strip()])
     return cleaned_text.strip()
-    
+
+
 df["instructions"] = df["instructions"].apply(format_instructions)
 
 # Convert string tags to list
@@ -120,10 +138,10 @@ selected_chapter = st.selectbox("📚 Choose a Chapter", sorted(chapters))
 
 # Filter for the selected chapter
 chapter_activities = df[df["chapter"] == selected_chapter]
+chapter_title = chapter_titles[selected_chapter]
 raw_summary = chapter_activities["chapter_summary"].dropna().unique()
 
 if raw_summary.any():
-    chapter_title = chapter_titles[selected_chapter]
     cleaned_summary = clean_chapter_summary(raw_summary[0], chapter_title)
 
     st.markdown(f"## 📘 {chapter_title}")
