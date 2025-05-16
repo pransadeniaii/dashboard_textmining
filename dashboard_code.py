@@ -96,11 +96,12 @@ st.title("📘 Pyari Curriculum Activities")
 chapters = df["chapter"].dropna().unique()
 selected_chapter = st.selectbox("📚 Choose a Chapter", sorted(chapters))
 
-# Show chapter summary
-chapter_title = chapter_titles[selected_chapter]
+# Filter for the selected chapter
+chapter_activities = df[df["chapter"] == selected_chapter]
 raw_summary = chapter_activities["chapter_summary"].dropna().unique()
 
 if raw_summary.any():
+    chapter_title = chapter_titles[selected_chapter]
     cleaned_summary = clean_chapter_summary(raw_summary[0], chapter_title)
 
     st.markdown(f"## 📘 {chapter_title}")
