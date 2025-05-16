@@ -13,10 +13,35 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
+import ast
+import re
+
 from sklearn.metrics.pairwise import cosine_similarity
 
 # Loading the final data with embeddings
 df = pd.read_pickle("activities_with_embeddings.pkl")
+
+# -- Clean up age_group field
+def simplify_age(age):
+    if pd.isna(age):
+        return "No specific category"
+    match = re.search(r"\d+", str(age))
+    return match.group() + "+" if match else "No specific category"
+
+df["age_group"] = df["age_group"].apply(simplify_age)
+
+# -- Convert instruction strings that look like lists into bullet points
+def format_instructions(instr):
+    if isinstance(instr, str):
+        try:
+            parsed = ast.literal_eval(instr)
+            if isinstance(parsed, list):
+                return "\n".join([f"- {line}" for line in parsed])
+        except:
+            pass
+    return instr
+
+df["instructions"] = df["instructions"].apply(format_instructions)
 
 # Convert string tags to list
 df["pyari_curriculum_tags"] = df["pyari_curriculum_tags"].fillna("").apply(lambda x: [tag.strip() for tag in x.split(",") if tag])
@@ -43,15 +68,38 @@ if search_query:
                               filtered_df["purpose"].str.contains(search_query, case=False, na=False) |
                               filtered_df["instructions"].str.contains(search_query, case=False, na=False)]
 
-# Show activity list
 st.title("📘 Pyari Curriculum Activities")
-for idx, row in filtered_df.iterrows():
+
+# Get unique chapters
+chapters = df["chapter"].dropna().unique()
+selected_chapter = st.selectbox("📚 Choose a Chapter", sorted(chapters))
+
+# Show chapter summary
+chapter_activities = df[df["chapter"] == selected_chapter]
+chapter_summary = chapter_activities["chapter_summary"].dropna().unique()
+if chapter_summary.any():
+    st.markdown("### ✨ Chapter Summary")
+    st.markdown(chapter_summary[0])
+
+# Show sections in the selected chapter
+sections = chapter_activities["section"].dropna().unique()
+selected_section = st.selectbox("📂 Choose a Section", sorted(sections))
+
+# Filter to selected section
+section_activities = chapter_activities[chapter_activities["section"] == selected_section]
+
+# Display activities in selected section
+st.markdown("### 🎯 Activities")
+
+for idx, row in section_activities.iterrows():
     st.subheader(row["title"])
     st.markdown(f"**Purpose:** {row['purpose']}")
     st.markdown(f"**Age Group:** {row['age_group']}")
-    st.markdown(f"**Tags:** {', '.join(row['pyari_curriculum_tags'])}")
+    st.markdown(f"**Tags:** {', '.join(row['pyari_curriculum_tags']) if isinstance(row['pyari_curriculum_tags'], list) else row['pyari_curriculum_tags']}")
+    
     with st.expander("📖 Instructions"):
         st.markdown(row["instructions"])
+    
     with st.expander("✨ See similar activities"):
         emb_matrix = np.stack(df["embedding"].values)
         target = np.array(row["embedding"]).reshape(1, -1)
