@@ -30,30 +30,27 @@ def simplify_age(age):
 
 df["age_group"] = df["age_group"].apply(simplify_age)
 
-# Cleaning chapter summary
-import re
+# Get full chapter titles from first few lines in the chapter_summary field
+def extract_title_from_summary(summary):
+    if isinstance(summary, str):
+        match = re.search(r"CHAPTER\s+\d+\s*:\s*(.+?)(\.\s|$)", summary, flags=re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    return ""
 
-def clean_chapter_summary(text, chapter_title):
-    if not isinstance(text, str):
-        return ""
+# Try extracting chapter names from the summary field
+chapter_titles = {}
+for chapter in df["chapter"].dropna().unique():
+    chapter_summary = df[df["chapter"] == chapter]["chapter_summary"].dropna().values
+    if chapter_summary.size > 0:
+        extracted_title = extract_title_from_summary(chapter_summary[0])
+        if extracted_title:
+            chapter_titles[chapter] = f"{chapter}: {extracted_title}"
+        else:
+            chapter_titles[chapter] = chapter  # fallback
+    else:
+        chapter_titles[chapter] = chapter
 
-    # Remove header like "11 CHAPTER 2 Creating safer spaces"
-    text = re.sub(r"^\d+\s+CHAPTER\s+\d+\s+[^\n]+", "", text, flags=re.IGNORECASE)
-
-    # Remove footer lines like "12 Creating safer spaces" or "Chapter summary"
-    footer_patterns = [
-        rf"\d{{1,3}}\s+{re.escape(chapter_title)}",
-        r"\d{1,3}\s+Chapter summary",
-        r"Chapter summary"
-    ]
-
-    for pattern in footer_patterns:
-        text = re.sub(pattern, "", text, flags=re.IGNORECASE)
-
-    # Remove trailing page numbers
-    text = re.sub(r"\n?\s*\d+\s*$", "", text)
-
-    return text.strip()
 
 # -- Convert instruction strings that look like lists into bullet points
 def format_instructions(instr):
@@ -100,21 +97,16 @@ chapters = df["chapter"].dropna().unique()
 selected_chapter = st.selectbox("📚 Choose a Chapter", sorted(chapters))
 
 # Show chapter summary
-chapter_activities = df[df["chapter"] == selected_chapter]
+chapter_title = chapter_titles[selected_chapter]
 raw_summary = chapter_activities["chapter_summary"].dropna().unique()
 
 if raw_summary.any():
-    # Extract title from "Chapter 2: Creating safer spaces"
-    chapter_title = selected_chapter.split(":")[-1].strip()
-
-    # Clean it dynamically
     cleaned_summary = clean_chapter_summary(raw_summary[0], chapter_title)
 
-    # Display cleaned summary
-    st.markdown(f"## 📘 {selected_chapter}")
+    st.markdown(f"## 📘 {chapter_title}")
     for para in cleaned_summary.split("\n\n"):
         st.markdown(para.strip())
-        
+
 # Show sections in the selected chapter
 sections = chapter_activities["section"].dropna().unique()
 selected_section = st.selectbox("📂 Choose a Section", sorted(sections))
