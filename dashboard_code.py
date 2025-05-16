@@ -35,6 +35,9 @@ def extract_chapter_title(summary):
     if not isinstance(summary, str):
         return "Untitled"
 
+    if chapter_key == "Chapter 4":
+        return "Gender and sexual equality"
+
     # Try: "CHAPTER 6 Sex"
     match = re.search(r"CHAPTER\s+\d+\s+(.+)", summary, flags=re.IGNORECASE)
     if match:
@@ -80,6 +83,12 @@ def format_instructions(instr):
 def clean_chapter_summary(text, chapter_title):
     if not isinstance(text, str):
         return ""
+
+    # Special patch: remove 'equality' if it's the first word in Chapter 4
+    if chapter_title == "Gender and sexual equality":
+        lines = text.strip().splitlines()
+        if lines and lines[0].strip().lower() == "equality":
+            text = "\n".join(lines[1:])
 
     lines = text.splitlines()
     cleaned_lines = []
