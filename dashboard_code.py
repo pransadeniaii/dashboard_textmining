@@ -100,7 +100,7 @@ chapter_summary = chapter_activities["chapter_summary"].dropna().unique()
 if chapter_summary.any():
     st.markdown("### ✨ Chapter Summary")
     for para in chapter_summary[0].split("\n\n"):
-    st.markdown(para.strip())
+        st.markdown(para.strip())
 
 # Show sections in the selected chapter
 sections = chapter_activities["section"].dropna().unique()
