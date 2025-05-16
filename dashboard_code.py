@@ -63,6 +63,28 @@ def format_instructions(instr):
             pass
     return instr
 
+def clean_chapter_summary(text, chapter_title):
+    if not isinstance(text, str):
+        return ""
+
+    lines = text.splitlines()
+    cleaned_lines = []
+
+    for line in lines:
+        if re.match(r"^\s*\d+\s*$", line):  # page numbers
+            continue
+        if re.search(rf"\d{{1,3}}\s+{re.escape(chapter_title)}", line, flags=re.IGNORECASE):  # footer
+            continue
+        if re.search(r"Chapter summary", line, flags=re.IGNORECASE):  # footer label
+            continue
+        if re.search(r"CHAPTER\s+\d+", line, flags=re.IGNORECASE):  # header
+            continue
+
+        cleaned_lines.append(line.strip())
+
+    cleaned_text = "\n\n".join([para for para in "\n".join(cleaned_lines).split("\n\n") if para.strip()])
+    return cleaned_text.strip()
+    
 df["instructions"] = df["instructions"].apply(format_instructions)
 
 # Convert string tags to list
