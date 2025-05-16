@@ -120,25 +120,51 @@ df["pyari_curriculum_tags"] = df["pyari_curriculum_tags"].fillna("").apply(lambd
 
 # Sidebar filters
 st.sidebar.title("🔍 Filter Activities")
-selected_age = st.sidebar.multiselect("Age Group", options=df["age_group"].unique())
-selected_tags = st.sidebar.multiselect("Pyari Tags", options=sorted({tag for sublist in df["pyari_curriculum_tags"] for tag in sublist}))
 
-# Keyword search
-search_query = st.sidebar.text_input("Search by keyword")
+age_options = sorted(df["age_group"].unique())
+selected_age = st.sidebar.selectbox("Filter by Age Group", ["All"] + age_options)
 
-# Filtered data
+all_tags = sorted({tag for sublist in df["pyari_curriculum_tags"] for tag in sublist})
+selected_tags = st.sidebar.multiselect("Filter by Tags", all_tags)
+
+# Apply filters
 filtered_df = df.copy()
 
-if selected_age:
-    filtered_df = filtered_df[filtered_df["age_group"].isin(selected_age)]
+if selected_age != "All":
+    filtered_df = filtered_df[filtered_df["age_group"] == selected_age]
 
 if selected_tags:
-    filtered_df = filtered_df[filtered_df["pyari_curriculum_tags"].apply(lambda tags: any(t in tags for t in selected_tags))]
+    filtered_df = filtered_df[filtered_df["pyari_curriculum_tags"].apply(lambda tags: any(tag in tags for tag in selected_tags))]
+# Show filtered activities if any filter is applied
+if selected_age != "All" or selected_tags:
+    st.title("🎯 Filtered Activities")
 
-if search_query:
-    filtered_df = filtered_df[filtered_df["title"].str.contains(search_query, case=False, na=False) |
-                              filtered_df["purpose"].str.contains(search_query, case=False, na=False) |
-                              filtered_df["instructions"].str.contains(search_query, case=False, na=False)]
+    if filtered_df.empty:
+        st.markdown("No activities match your filters.")
+    else:
+        for _, row in filtered_df.iterrows():
+            st.subheader(row["title"])
+            st.markdown(f"**Purpose:** {row['purpose']}")
+            st.markdown(f"**Age Group:** {row['age_group']}")
+            st.markdown(f"**Tags:** {', '.join(row['pyari_curriculum_tags'])}")
+
+            with st.expander("📖 Instructions"):
+                st.markdown(row["instructions"])
+
+            with st.expander("✨ See similar activities"):
+                emb_matrix = np.stack(df["embedding"].values)
+                target = np.array(row["embedding"]).reshape(1, -1)
+                sims = cosine_similarity(target, emb_matrix)[0]
+                top_indices = sims.argsort()[::-1][1:4]
+                for i in top_indices:
+                    sim_row = df.iloc[i]
+                    st.markdown(f"**→ {sim_row['title']}** — _{sim_row['purpose']}_")
+else:
+    # 👇 Your current chapter → section → activity structure goes here
+    # selected_chapter = ...
+    # chapter_activities = ...
+    # st.markdown(f"## 📘 {chapter_title}") ...
+    pass
 
 st.title("📘 Pyari Curriculum Activities")
 
