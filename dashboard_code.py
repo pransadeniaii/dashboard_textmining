@@ -31,21 +31,25 @@ def simplify_age(age):
 df["age_group"] = df["age_group"].apply(simplify_age)
 
 # Get full chapter titles from first few lines in the chapter_summary field
-def extract_chapter_title(summary):
+def extract_chapter_title(summary, chapter_key=None):
     if not isinstance(summary, str):
         return "Untitled"
+
+    # 🔧 Special case for Chapter 4
+    if chapter_key == "Chapter 4":
+        return "Gender and sexual equality"
 
     # Try: "CHAPTER 6 Sex"
     match = re.search(r"CHAPTER\s+\d+\s+(.+)", summary, flags=re.IGNORECASE)
     if match:
         return match.group(1).strip()
 
-    # Try: "6 Sex" (page heading without "CHAPTER")
+    # Try: "6 Sex"
     match = re.search(r"^\d+\s+([A-Za-z].+)$", summary, flags=re.MULTILINE)
     if match:
         return match.group(1).strip()
 
-    # Fallback: Use most likely first non-"Introduction" line
+    # Fallback
     for line in summary.splitlines():
         clean = line.strip()
         if clean and clean.lower() not in ["introduction", "chapter summary"]:
@@ -87,23 +91,18 @@ def clean_chapter_summary(text, chapter_title):
     for line in lines:
         stripped = line.strip()
 
-        # Remove lines that match the chapter title exactly (start or end)
+        # 🩹 Remove the word "equality" if it's the first line in Chapter 4
+        if chapter_title == "Gender and sexual equality" and stripped.lower() == "equality":
+            continue
+
         if stripped == chapter_title:
             continue
-
-        # Remove lines like "Sexual health 261" or "261 Sexual health"
         if chapter_title.lower() in stripped.lower() and re.search(r"\d", stripped):
             continue
-
-        # Remove CHAPTER header
         if re.search(r"CHAPTER\s+\d+", stripped, flags=re.IGNORECASE):
             continue
-
-        # Remove lines like "Chapter summary"
         if "Chapter summary" in stripped:
             continue
-
-        # Remove single page numbers
         if re.match(r"^\d+$", stripped):
             continue
 
@@ -111,7 +110,6 @@ def clean_chapter_summary(text, chapter_title):
 
     cleaned_text = "\n\n".join([para for para in "\n".join(cleaned_lines).split("\n\n") if para.strip()])
     return cleaned_text.strip()
-
 
 df["instructions"] = df["instructions"].apply(format_instructions)
 
