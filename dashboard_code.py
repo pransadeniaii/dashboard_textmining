@@ -95,7 +95,7 @@ def clean_chapter_summary(text, chapter_title):
             continue
 
         # Special case: remove "equality" if it shows up again
-        if chapter_title == "Gender and sexual equality" and stripped.lower() == "equality":
+        if chapter_title == "Gender and sexual equality" and stripped.lower() == "Gender and sexual equality":
             continue
 
         if stripped == chapter_title:
